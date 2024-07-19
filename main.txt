@@ -1,0 +1,87 @@
+!不鏽鋼外罩塑性變形問題 code_bella_20191125
+
+!■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■!
+!請命名受力區域loadzone
+!建立一個旋轉中心座標系看清楚它的ID
+
+!%ARG1%外罩半徑最小值
+!%ARG2%外罩半徑最大值
+!%ARG3%CST直線運輸速度
+!%ARG4%擠壓時面積
+!%ARG5%擠壓時面積寬度
+!%ARG6%求解想轉圈數
+!%ARG7%旋轉座標系ID
+!%ARG8%代表CST分配至滾輪重
+!%ARG9%代表滾輪內應力
+!■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■!
+
+
+/nerr,,99999999
+r_avg=(%ARG1%+%ARG2%)/2					!平均半徑
+rot_f=%ARG3%/(2*3.14159*r_avg)			!轉動頻率(每秒轉幾弧度)
+rot_T=1/rot_f							!轉動週期(每弧度幾秒)
+zeta=%ARG4%/(3.14159*(r_avg*2)*%ARG5%)	!擠壓時佔弧度
+steptime=zeta*rot_T
+zeta_deg=zeta*360
+
+
+esel,s,mat,,1
+*do,i,2,12,1
+esel,a,mat,,i
+*enddo
+nsle
+cm,cover_elem,elem
+cm,cover_node,node
+alls
+
+csys,%ARG7%	$wpcsys,,%ARG7%
+cmsel,s,cover_node
+nrotat,all				!node座標系rotation給F的方向才會對
+alls
+
+
+
+!=====開始求解=====!
+/solu
+!*do,i,1,12,1
+!inistate,set,mat,i
+!inistate,define,,,,,0,0,%ARG9%	!給外罩內應力(它會造成形變不是我們要的)
+!*enddo
+!alls
+
+
+csys,%ARG7%	$wpcsys,,%ARG7%
+rota=0
+nnn=0
+okok=1
+*dowhile,okok
+nnn=nnn+1
+
+*if,nnn,gt,1,then		!不要讓我硬碟爆掉好嗎
+nsubst,3,5,2
+*endif
+
+nowtime=steptime*nnn
+rota1=rota+zeta_deg
+cmsel,s,loadzone
+!nsel,r,loc,x,%ARG1%,%ARG2%
+nsel,r,loc,y,rota,rota1
+
+*get,node_count,node,,count
+*if,node_count,gt,0,then
+fxx=%ARG8%/node_count
+f,all,fx,-fxx
+time,nowtime
+alls
+solve
+fdele,all,all
+*endif
+
+rota=rota1
+*if,rota,gt,%ARG6%*360,then
+okok=0
+*endif
+*enddo
+
+
+/eof
